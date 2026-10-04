@@ -14,6 +14,7 @@ hilt = "2.59.2"
 hiltNavigation = "1.2.0"
 firebaseBom = "33.9.0"
 googleServices = "4.4.2"
+firebaseCrashlyticsPlugin = "3.0.3"
 coroutinesPlayServices = "1.9.0"
 desugarJdkLibs = "2.1.5"
 
@@ -41,6 +42,8 @@ androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navig
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 
@@ -50,3 +53,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 legacy-kapt = { id = "com.android.legacy-kapt", version.ref = "agp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }

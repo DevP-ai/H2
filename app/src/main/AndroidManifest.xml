@@ -29,6 +29,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Crash reporting / analytics: on in release builds, off in debug (see build.gradle.kts) -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
+
         <!-- Hands the downloaded update APK to the system installer -->
         <provider
             android:name="androidx.core.content.FileProvider"

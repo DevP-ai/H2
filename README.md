@@ -1,8 +1,9 @@
 # H2 Hunger Hunter — Food Cart Manager
 
 Android app (Kotlin, Jetpack Compose, Material 3, MVVM + Clean Architecture, Hilt) for the daily revenue,
-expenses and profit/loss of several food carts. Backend: Firebase Authentication + Cloud Firestore only
-(no Firebase Storage, no images).
+expenses and profit/loss of several food carts. Backend: Firebase Authentication + Cloud Firestore
+(no Firebase Storage, no images). Crashlytics (+ Analytics) reports crashes from release builds only; reports
+carry the user id, role and cart id, never names or emails.
 
 - **Admin** sees every cart, manager and record; manages carts and manager assignments; adds revenue/expenses
   to any active cart and corrects any record (stamped with `updatedBy`); reports and charts.

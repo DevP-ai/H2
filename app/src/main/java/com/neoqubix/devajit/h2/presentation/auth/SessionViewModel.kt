@@ -3,6 +3,7 @@ package com.neoqubix.devajit.h2.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewModelScope
+import com.neoqubix.devajit.h2.data.CrashReporter
 import com.neoqubix.devajit.h2.domain.repository.TransactionRepository
 import com.neoqubix.devajit.h2.domain.usecase.LogoutUseCase
 import com.neoqubix.devajit.h2.domain.usecase.ObserveSessionUseCase
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -22,7 +24,8 @@ import javax.inject.Inject
 class SessionViewModel @Inject constructor(
     observeSession: ObserveSessionUseCase,
     private val logoutUseCase: LogoutUseCase,
-    transactionRepository: TransactionRepository
+    transactionRepository: TransactionRepository,
+    crashReporter: CrashReporter
 ) : ViewModel() {
 
     private val retry = MutableStateFlow(0)
@@ -30,6 +33,14 @@ class SessionViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val session: StateFlow<Session> = retry
         .flatMapLatest { observeSession() }
+        // Crash reports carry the current user's id, role and cart
+        .onEach { s ->
+            when (s) {
+                is Session.Ready -> crashReporter.setUser(s.user)
+                Session.SignedOut, Session.MissingProfile -> crashReporter.setUser(null)
+                else -> Unit
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.Eagerly, Session.Loading)
 
     val syncErrors: SharedFlow<String> = transactionRepository.syncErrors

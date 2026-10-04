@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.neoqubix.devajit.h2.data.CrashReporter
 import com.neoqubix.devajit.h2.data.firebase.Collections
 import com.neoqubix.devajit.h2.data.firebase.Fields
 import com.neoqubix.devajit.h2.data.firebase.snapshots
@@ -31,7 +32,8 @@ import javax.inject.Singleton
 @Singleton
 class TransactionRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val crashReporter: CrashReporter
 ) : TransactionRepository {
 
     private val syncErrorEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -104,7 +106,10 @@ class TransactionRepositoryImpl @Inject constructor(
         if (task.awaitOrQueued()) {
             SaveResult.SAVED
         } else {
-            task.addOnFailureListener { e -> syncErrorEvents.tryEmit("An offline edit could not be synced: ${e.toUserMessage()}") }
+            task.addOnFailureListener { e ->
+                crashReporter.record(e)
+                syncErrorEvents.tryEmit("An offline edit could not be synced: ${e.toUserMessage()}")
+            }
             SaveResult.QUEUED_OFFLINE
         }
     }
@@ -123,6 +128,8 @@ class TransactionRepositoryImpl @Inject constructor(
         } else {
             // Saved on the phone; tell the user later if the server rejects it when it syncs
             task.addOnFailureListener { e ->
+                // A queued write the server rejected: the user's data was lost, so it's worth a report
+                crashReporter.record(e)
                 syncErrorEvents.tryEmit("An offline $what could not be synced: ${e.toUserMessage()}")
             }
             SaveResult.QUEUED_OFFLINE

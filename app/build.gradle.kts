@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.hilt)
     // Needs app/google-services.json from the Firebase console
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 // Set by the release workflow (-PversionCode / -PversionName); local builds stay 1 / "1.0"
@@ -45,7 +46,12 @@ android {
     }
 
     buildTypes {
+        // Crash reports and analytics only from release builds, so testing on emulators doesn't fill the dashboards
+        debug {
+            manifestPlaceholders["crashlyticsEnabled"] = false
+        }
         release {
+            manifestPlaceholders["crashlyticsEnabled"] = true
             optimization {
                 enable = false
             }
@@ -84,10 +90,12 @@ dependencies {
     kapt(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Firebase (Auth + Firestore only, no Storage)
+    // Firebase (Auth, Firestore, Crashlytics + Analytics for crash breadcrumbs; no Storage)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
     implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)

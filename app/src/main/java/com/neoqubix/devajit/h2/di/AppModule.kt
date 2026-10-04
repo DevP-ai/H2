@@ -1,6 +1,7 @@
 package com.neoqubix.devajit.h2.di
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FirebaseFirestore
 import com.neoqubix.devajit.h2.data.repository.AuthRepositoryImpl
 import com.neoqubix.devajit.h2.data.repository.CartRepositoryImpl
@@ -31,6 +32,10 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideCrashlytics(): FirebaseCrashlytics = FirebaseCrashlytics.getInstance()
 }
 
 @Module
