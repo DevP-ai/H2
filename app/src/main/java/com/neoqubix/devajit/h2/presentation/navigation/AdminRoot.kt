@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import com.neoqubix.devajit.h2.ui.theme.h2TopBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,7 +67,7 @@ fun AdminRoot(user: UserProfile, onLogout: () -> Unit, onCheckForUpdates: () -> 
     // Insets come from the bars here; inner screens with their own Scaffold handle theirs
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { if (onTab) TopAppBar(title = { Text(adminTabs.first { it.route == route }.label) }) },
+        topBar = { if (onTab) TopAppBar(title = { Text(adminTabs.first { it.route == route }.label) }, colors = h2TopBarColors()) },
         bottomBar = { if (onTab) BottomTabs(navController, adminTabs, route) },
         floatingActionButton = {
             if (route == "carts") {

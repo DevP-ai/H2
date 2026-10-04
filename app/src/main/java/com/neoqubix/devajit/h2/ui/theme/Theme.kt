@@ -1,7 +1,10 @@
 package com.neoqubix.devajit.h2.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -50,3 +53,11 @@ fun H2Theme(
         content = content
     )
 }
+
+// Top bars blend into the screen (same cream background) instead of Material's default white surface
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun h2TopBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
+    containerColor = MaterialTheme.colorScheme.background,
+    scrolledContainerColor = MaterialTheme.colorScheme.background
+)

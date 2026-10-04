@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import com.neoqubix.devajit.h2.ui.theme.h2TopBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +56,7 @@ fun CartEditScreen(onDone: () -> Unit, viewModel: CartEditViewModel = hiltViewMo
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = h2TopBarColors(),
                 title = { Text(if (form.existing == null) "Add Cart" else "Edit Cart") },
                 navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
             )

@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import com.neoqubix.devajit.h2.ui.theme.h2TopBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -110,7 +111,10 @@ private fun ManagerShell(user: UserProfile, cart: Cart, viewModel: ManagerViewMo
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            if (onTab) TopAppBar(title = { Text(managerTabs.first { it.route == route }.label.let { if (it == "Home") cart.name else it }) })
+            if (onTab) TopAppBar(
+                title = { Text(managerTabs.first { it.route == route }.label.let { if (it == "Home") cart.name else it }) },
+                colors = h2TopBarColors()
+            )
         },
         bottomBar = { if (onTab) BottomTabs(navController, managerTabs, route) },
         floatingActionButton = {

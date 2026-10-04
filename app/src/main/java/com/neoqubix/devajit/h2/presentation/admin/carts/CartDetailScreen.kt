@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import com.neoqubix.devajit.h2.ui.theme.h2TopBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +58,7 @@ fun CartDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = h2TopBarColors(),
                 title = { Text(cart?.name ?: "Cart") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
                 actions = {

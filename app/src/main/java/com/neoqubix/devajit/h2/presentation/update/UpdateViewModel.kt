@@ -3,6 +3,7 @@ package com.neoqubix.devajit.h2.presentation.update
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.neoqubix.devajit.h2.BuildConfig
+import com.neoqubix.devajit.h2.data.update.UpdatePreferences
 import com.neoqubix.devajit.h2.domain.model.AppUpdate
 import com.neoqubix.devajit.h2.domain.repository.UpdateRepository
 import com.neoqubix.devajit.h2.utils.toUserMessage
@@ -30,7 +31,8 @@ sealed interface UpdateState {
 // Lives for the whole app (not per login), so a required update blocks every screen including Login
 @HiltViewModel
 class UpdateViewModel @Inject constructor(
-    private val repository: UpdateRepository
+    private val repository: UpdateRepository,
+    private val preferences: UpdatePreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<UpdateState>(UpdateState.None)
@@ -58,8 +60,12 @@ class UpdateViewModel @Inject constructor(
         checkJob = viewModelScope.launch {
             repository.fetchLatest()
                 .onSuccess { update ->
-                    if (update.isNewerThan(installedVersionCode)) {
-                        _state.value = UpdateState.Available(update, update.isRequiredFor(installedVersionCode))
+                    val required = update.isRequiredFor(installedVersionCode)
+                    // The launch check stays quiet for an optional version the user put off with "Later";
+                    // a newer release, a required update or a manual check shows it again
+                    val skipped = !manual && !required && update.versionCode <= preferences.skippedVersionCode
+                    if (update.isNewerThan(installedVersionCode) && !skipped) {
+                        _state.value = UpdateState.Available(update, required)
                     } else if (manual) {
                         _messages.tryEmit("You have the latest version ($installedVersionName).")
                     }
@@ -84,16 +90,17 @@ class UpdateViewModel @Inject constructor(
         }
     }
 
-    // "Later" is only possible for optional updates
+    // "Later" is only possible for optional updates; it's remembered so this version isn't offered again at launch
     fun dismiss() {
-        val required = when (val s = _state.value) {
-            is UpdateState.Available -> s.required
-            is UpdateState.Downloading -> s.required
-            is UpdateState.ReadyToInstall -> s.required
-            is UpdateState.Failed -> s.required
-            UpdateState.None -> false
+        val (update, required) = when (val s = _state.value) {
+            is UpdateState.Available -> s.update to s.required
+            is UpdateState.Downloading -> s.update to s.required
+            is UpdateState.ReadyToInstall -> s.update to s.required
+            is UpdateState.Failed -> s.update to s.required
+            UpdateState.None -> return
         }
         if (required) return
+        preferences.skippedVersionCode = maxOf(preferences.skippedVersionCode, update.versionCode)
         downloadJob?.cancel()
         _state.value = UpdateState.None
     }
