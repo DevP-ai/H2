@@ -43,6 +43,8 @@ fun DocumentSnapshot.toTransaction(type: TransactionType): Transaction? {
         category = if (type == TransactionType.EXPENSE) getString(Fields.CATEGORY) ?: "Miscellaneous" else null,
         createdBy = getString(Fields.CREATED_BY).orEmpty(),
         createdAt = millis(Fields.CREATED_AT),
+        updatedBy = getString(Fields.UPDATED_BY)?.ifBlank { null },
+        updatedAt = millis(Fields.UPDATED_AT),
         pendingSync = metadata.hasPendingWrites()
     )
 }

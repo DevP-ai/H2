@@ -24,4 +24,5 @@ object Fields {
     const val CREATED_BY = "createdBy"
     const val CREATED_AT = "createdAt"
     const val UPDATED_AT = "updatedAt"
+    const val UPDATED_BY = "updatedBy"
 }

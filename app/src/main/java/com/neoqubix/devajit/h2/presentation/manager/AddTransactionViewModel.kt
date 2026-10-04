@@ -60,7 +60,8 @@ class AddTransactionViewModel @Inject constructor(
         return LocalDateTime.of(date, time).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
 
-    fun save(user: UserProfile, isExpense: Boolean) {
+    // cartId: the cart the form is for (managers' records always go to their own cart regardless)
+    fun save(user: UserProfile, cartId: String, isExpense: Boolean) {
         val f = _form.value
         if (f.saving) return
         val amount = parseAmount(f.amount)
@@ -77,9 +78,9 @@ class AddTransactionViewModel @Inject constructor(
         viewModelScope.launch {
             _form.update { it.copy(saving = true, error = null) }
             val result = if (isExpense) {
-                addExpense(user, f.category, amount, dateMillis(f.date), f.description)
+                addExpense(user, cartId, f.category, amount, dateMillis(f.date), f.description)
             } else {
-                addRevenue(user, amount, dateMillis(f.date), f.description)
+                addRevenue(user, cartId, amount, dateMillis(f.date), f.description)
             }
             val what = if (isExpense) "Expense" else "Revenue"
             result

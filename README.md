@@ -4,10 +4,11 @@ Android app (Kotlin, Jetpack Compose, Material 3, MVVM + Clean Architecture, Hil
 expenses and profit/loss of several food carts. Backend: Firebase Authentication + Cloud Firestore only
 (no Firebase Storage, no images).
 
-- **Admin** sees every cart, manager and record; manages carts and manager assignments; reports and charts.
+- **Admin** sees every cart, manager and record; manages carts and manager assignments; adds revenue/expenses
+  to any active cart and corrects any record (stamped with `updatedBy`); reports and charts.
 - **Manager** sees and adds data only for the one cart an admin assigned to them.
 - Everyone who registers is a **manager** with no cart. Admins are made only in the Firebase console.
-- Access is enforced by `firestore.rules`, not just the UI (32 emulator tests in `firestore-tests/`).
+- Access is enforced by `firestore.rules`, not just the UI (38 emulator tests in `firestore-tests/`).
 
 ## Firebase setup (one time)
 
@@ -34,8 +35,8 @@ expenses and profit/loss of several food carts. Backend: Firebase Authentication
 |---|---|
 | `users/{uid}` | name, email, phone, role (`manager`/`admin`), cartId (null until assigned), createdAt, updatedAt |
 | `carts/{cartId}` | name, location, managerId, status (`active`/`inactive`), createdAt, updatedAt |
-| `sales/{id}` | cartId, amount, date, description, createdBy, createdAt, updatedAt |
-| `expenses/{id}` | cartId, category, amount, date, description, createdBy, createdAt, updatedAt |
+| `sales/{id}` | cartId, amount, date, description, createdBy, createdAt, updatedAt, updatedBy (admin edits only) |
+| `expenses/{id}` | cartId, category, amount, date, description, createdBy, createdAt, updatedAt, updatedBy (admin edits only) |
 
 Profit/loss is never stored: it is always revenue − expenses calculated from these records.
 

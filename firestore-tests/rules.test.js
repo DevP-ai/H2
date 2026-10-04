@@ -161,6 +161,40 @@ describe('records are validated and audited', () => {
   });
 });
 
+describe('admin edits revenue and expenses of any cart', () => {
+  const edit = (extra = {}) => ({ amount: 16000, description: 'Corrected', updatedAt: serverTimestamp(), updatedBy: 'admin', ...extra });
+
+  test('admin corrects a sale and an expense in any cart', async () => {
+    const db = as('admin');
+    await assertSucceeds(updateDoc(doc(db, 'sales/sale1'), edit({ date: Timestamp.fromDate(new Date(2026, 9, 1)) })));
+    await assertSucceeds(updateDoc(doc(db, 'sales/sale2'), edit()));
+    await assertSucceeds(updateDoc(doc(db, 'expenses/exp1'), edit({ amount: 900, category: 'Oil' })));
+  });
+  test('the edit must name the admin as updatedBy', async () => {
+    await assertFails(updateDoc(doc(as('admin'), 'sales/sale1'), edit({ updatedBy: 'managerA' })));
+    const { updatedBy, ...unsigned } = edit();
+    await assertFails(updateDoc(doc(as('admin'), 'sales/sale1'), unsigned));
+  });
+  test('cart, creator and creation time cannot be changed', async () => {
+    const db = as('admin');
+    await assertFails(updateDoc(doc(db, 'sales/sale1'), edit({ cartId: 'cart2' })));
+    await assertFails(updateDoc(doc(db, 'sales/sale1'), edit({ createdBy: 'admin' })));
+    await assertFails(updateDoc(doc(db, 'sales/sale1'), edit({ createdAt: serverTimestamp() })));
+  });
+  test('an edit is still validated', async () => {
+    const db = as('admin');
+    await assertFails(updateDoc(doc(db, 'sales/sale1'), edit({ amount: 0 })));
+    await assertFails(updateDoc(doc(db, 'expenses/exp1'), edit({ category: '' })));
+    await assertFails(updateDoc(doc(db, 'sales/sale1'), edit({ category: 'Gas' })));
+  });
+  test('a manager cannot edit, even with updatedBy', async () => {
+    await assertFails(updateDoc(doc(as('managerA'), 'sales/sale1'), edit({ updatedBy: 'managerA' })));
+  });
+  test('a new record cannot claim to be edited', async () => {
+    await assertFails(setDoc(doc(as('managerA'), 'sales/x'), sale('cart1', 'managerA', { updatedBy: 'managerA' })));
+  });
+});
+
 describe('manager without a cart', () => {
   test('sees no cart data and cannot add any', async () => {
     const db = as('newbie');

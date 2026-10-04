@@ -101,11 +101,12 @@ service cloud.firestore {
 
     // ---------- sales & expenses ----------
     // Created by the cart's own manager (or an admin) for an active cart, stamped with who and when.
-    // Records are never edited or deleted from the app.
+    // Only an admin can correct a record (amount, date, description, category), stamped with updatedBy.
+    // The cart, creator and creation time never change, and records are never deleted.
 
     function validRecord(extraKeys) {
       let d = request.resource.data;
-      return d.keys().hasOnly(['cartId', 'amount', 'date', 'description', 'createdBy', 'createdAt', 'updatedAt'].concat(extraKeys))
+      return d.keys().hasOnly(['cartId', 'amount', 'date', 'description', 'createdBy', 'createdAt', 'updatedAt', 'updatedBy'].concat(extraKeys))
         && d.keys().hasAll(['cartId', 'amount', 'date', 'createdBy', 'createdAt', 'updatedAt'])
         && d.cartId is string
         && (d.amount is int || d.amount is float)
@@ -113,9 +114,25 @@ service cloud.firestore {
         && d.amount <= 10000000
         && d.date is timestamp
         && (!('description' in d) || (d.description is string && d.description.size() <= 200))
-        && d.createdBy == request.auth.uid
-        && isServerTime(d.createdAt)
         && isServerTime(d.updatedAt);
+    }
+
+    // A new record: stamped with its creator, not yet edited
+    function validNewRecord(extraKeys) {
+      let d = request.resource.data;
+      return validRecord(extraKeys)
+        && !('updatedBy' in d)
+        && d.createdBy == request.auth.uid
+        && isServerTime(d.createdAt);
+    }
+
+    // An admin's correction: only the editable fields change, and the editor is recorded
+    function validEdit(editableKeys) {
+      let d = request.resource.data;
+      return isAdmin()
+        && validRecord(editableKeys.removeAll(['amount', 'date', 'description']))
+        && d.diff(resource.data).affectedKeys().hasOnly(editableKeys.concat(['updatedAt', 'updatedBy']))
+        && d.updatedBy == request.auth.uid;
     }
 
     function canWriteFor(cartId) {
@@ -124,18 +141,24 @@ service cloud.firestore {
 
     match /sales/{saleId} {
       allow read: if isAdmin() || isManagerOf(resource.data.cartId);
-      allow create: if validRecord([]) && canWriteFor(request.resource.data.cartId);
-      allow update, delete: if false;
+      allow create: if validNewRecord([]) && canWriteFor(request.resource.data.cartId);
+      allow update: if validEdit(['amount', 'date', 'description']);
+      allow delete: if false;
+    }
+
+    function validCategory() {
+      return request.resource.data.category is string
+        && request.resource.data.category.size() > 0
+        && request.resource.data.category.size() <= 50;
     }
 
     match /expenses/{expenseId} {
       allow read: if isAdmin() || isManagerOf(resource.data.cartId);
-      allow create: if validRecord(['category'])
-        && request.resource.data.category is string
-        && request.resource.data.category.size() > 0
-        && request.resource.data.category.size() <= 50
+      allow create: if validNewRecord(['category'])
+        && validCategory()
         && canWriteFor(request.resource.data.cartId);
-      allow update, delete: if false;
+      allow update: if validEdit(['amount', 'date', 'description', 'category']) && validCategory();
+      allow delete: if false;
     }
 
     // Everything else is closed

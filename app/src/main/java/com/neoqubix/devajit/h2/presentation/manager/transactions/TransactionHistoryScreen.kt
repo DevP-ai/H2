@@ -39,6 +39,7 @@ fun TransactionHistoryList(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
     cartNameOf: ((String) -> String?)? = null,
+    onTransactionClick: ((Transaction) -> Unit)? = null,
     header: (@Composable () -> Unit)? = null
 ) {
     LazyColumn(
@@ -72,7 +73,7 @@ fun TransactionHistoryList(
                     }
                     items(items, key = { "${it.type}-${it.id}" }) { t ->
                         Column {
-                            TransactionItem(t, cartName = cartNameOf?.invoke(t.cartId))
+                            TransactionItem(t, cartName = cartNameOf?.invoke(t.cartId), onClick = onTransactionClick?.let { open -> { open(t) } })
                             HorizontalDivider()
                         }
                     }

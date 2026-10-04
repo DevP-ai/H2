@@ -43,7 +43,8 @@ import com.neoqubix.devajit.h2.presentation.components.ExpenseCategorySelector
 import com.neoqubix.devajit.h2.ui.theme.ExpenseRed
 import com.neoqubix.devajit.h2.ui.theme.RevenueGreen
 
-// Add Revenue (isExpense = false) or Add Expense. The cart is always the manager's own; there is no cart field.
+// Add Revenue (isExpense = false) or Add Expense for one cart: a manager's own cart, or the cart an admin opened.
+// There is no cart field, so a manager can't pick another cart.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
@@ -106,7 +107,7 @@ fun AddTransactionScreen(
             )
             form.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
-                onClick = { viewModel.save(user, isExpense) },
+                onClick = { viewModel.save(user, cart.id, isExpense) },
                 enabled = !form.saving && cart.isActive,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),

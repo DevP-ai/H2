@@ -1,6 +1,7 @@
 package com.neoqubix.devajit.h2.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,11 +31,17 @@ import com.neoqubix.devajit.h2.utils.formatDate
 import com.neoqubix.devajit.h2.utils.formatRupees
 import com.neoqubix.devajit.h2.utils.formatTime
 
-// Revenue shows as green "+", expenses as red "-"
+// Revenue shows as green "+", expenses as red "-". onClick is only given to admins (to edit the record).
 @Composable
-fun TransactionItem(transaction: Transaction, modifier: Modifier = Modifier, cartName: String? = null) {
+fun TransactionItem(
+    transaction: Transaction,
+    modifier: Modifier = Modifier,
+    cartName: String? = null,
+    onClick: (() -> Unit)? = null
+) {
     val color = if (transaction.isRevenue) RevenueGreen else ExpenseRed
-    Row(modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    val clickable = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    Row(modifier.fillMaxWidth().then(clickable).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(40.dp).background(color.copy(alpha = 0.12f), CircleShape),
             contentAlignment = Alignment.Center
@@ -57,6 +64,7 @@ fun TransactionItem(transaction: Transaction, modifier: Modifier = Modifier, car
             )
             val details = buildList {
                 add(if (transaction.isRevenue) "Revenue" else "Expense")
+                if (transaction.isEdited) add("Edited")
                 if (!transaction.isRevenue && transaction.description.isNotBlank()) add(transaction.description)
                 if (cartName != null) add(cartName)
             }.joinToString(" · ")

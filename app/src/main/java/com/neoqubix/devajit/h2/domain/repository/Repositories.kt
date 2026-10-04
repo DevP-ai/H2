@@ -6,6 +6,8 @@ import com.neoqubix.devajit.h2.domain.model.DateRange
 import com.neoqubix.devajit.h2.domain.model.NewExpense
 import com.neoqubix.devajit.h2.domain.model.NewRevenue
 import com.neoqubix.devajit.h2.domain.model.Transaction
+import com.neoqubix.devajit.h2.domain.model.TransactionEdit
+import com.neoqubix.devajit.h2.domain.model.TransactionType
 import com.neoqubix.devajit.h2.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
@@ -49,6 +51,10 @@ interface TransactionRepository {
     fun observeTransactions(cartId: String?, range: DateRange, limit: Long? = null): Flow<List<Transaction>>
     suspend fun addRevenue(revenue: NewRevenue): Result<SaveResult>
     suspend fun addExpense(expense: NewExpense): Result<SaveResult>
+    // One record, live (null when it doesn't exist)
+    fun observeTransaction(type: TransactionType, id: String): Flow<Transaction?>
+    // Admin correction of amount, date, description (and category for expenses), stamped with the editor
+    suspend fun updateTransaction(type: TransactionType, id: String, edit: TransactionEdit): Result<SaveResult>
     // Writes saved offline that the server later rejected
     val syncErrors: SharedFlow<String>
 }

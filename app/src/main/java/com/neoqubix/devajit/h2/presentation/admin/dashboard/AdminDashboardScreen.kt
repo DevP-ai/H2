@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.neoqubix.devajit.h2.domain.model.Transaction
 import com.neoqubix.devajit.h2.domain.model.UserProfile
 import com.neoqubix.devajit.h2.presentation.admin.AdminViewModel
 import com.neoqubix.devajit.h2.presentation.common.UiState
@@ -40,7 +41,8 @@ fun AdminDashboardScreen(
     user: UserProfile,
     viewModel: AdminViewModel,
     onOpenCarts: () -> Unit,
-    onOpenManagers: () -> Unit
+    onOpenManagers: () -> Unit,
+    onOpenTransaction: (Transaction) -> Unit
 ) {
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val state by viewModel.overview.collectAsStateWithLifecycle()
@@ -77,7 +79,7 @@ fun AdminDashboardScreen(
                             Column(Modifier.padding(horizontal = 16.dp)) {
                                 data.transactions.take(5).forEachIndexed { i, t ->
                                     if (i > 0) HorizontalDivider()
-                                    TransactionItem(t, cartName = data.cartName(t.cartId) ?: "Unknown cart")
+                                    TransactionItem(t, cartName = data.cartName(t.cartId) ?: "Unknown cart", onClick = { onOpenTransaction(t) })
                                 }
                             }
                         }

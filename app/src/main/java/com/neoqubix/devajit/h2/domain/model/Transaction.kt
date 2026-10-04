@@ -13,10 +13,14 @@ data class Transaction(
     val category: String? = null,
     val createdBy: String = "",
     val createdAt: Long? = null,
+    // Set when an admin corrected the record
+    val updatedBy: String? = null,
+    val updatedAt: Long? = null,
     // True while the write is still waiting to reach the server (offline)
     val pendingSync: Boolean = false
 ) {
     val isRevenue: Boolean get() = type == TransactionType.REVENUE
+    val isEdited: Boolean get() = updatedBy != null
     val title: String get() = if (isRevenue) description.ifBlank { "Revenue" } else category ?: "Expense"
 }
 
@@ -25,6 +29,15 @@ data class NewRevenue(
     val amount: Double,
     val date: Long,
     val description: String
+)
+
+// An admin's correction of an existing record; the cart and creator never change
+data class TransactionEdit(
+    val amount: Double,
+    val date: Long,
+    val description: String,
+    // Expenses only
+    val category: String? = null
 )
 
 data class NewExpense(

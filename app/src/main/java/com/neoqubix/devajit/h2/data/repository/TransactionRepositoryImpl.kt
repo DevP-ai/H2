@@ -13,6 +13,7 @@ import com.neoqubix.devajit.h2.domain.model.DateRange
 import com.neoqubix.devajit.h2.domain.model.NewExpense
 import com.neoqubix.devajit.h2.domain.model.NewRevenue
 import com.neoqubix.devajit.h2.domain.model.Transaction
+import com.neoqubix.devajit.h2.domain.model.TransactionEdit
 import com.neoqubix.devajit.h2.domain.model.TransactionType
 import com.neoqubix.devajit.h2.domain.repository.SaveResult
 import com.neoqubix.devajit.h2.domain.repository.TransactionRepository
@@ -81,6 +82,32 @@ class TransactionRepositoryImpl @Inject constructor(
         ),
         what = "expense"
     )
+
+    private fun collectionOf(type: TransactionType) =
+        if (type == TransactionType.REVENUE) Collections.SALES else Collections.EXPENSES
+
+    override fun observeTransaction(type: TransactionType, id: String): Flow<Transaction?> =
+        firestore.collection(collectionOf(type)).document(id).snapshots()
+            .map { if (it.exists()) it.toTransaction(type) else null }
+
+    override suspend fun updateTransaction(type: TransactionType, id: String, edit: TransactionEdit): Result<SaveResult> = runCatching {
+        val uid = auth.currentUser?.uid ?: throw IllegalStateException("Please log in again.")
+        val fields = mutableMapOf<String, Any>(
+            Fields.AMOUNT to edit.amount,
+            Fields.DATE to Timestamp(Date(edit.date)),
+            Fields.DESCRIPTION to edit.description.trim(),
+            Fields.UPDATED_AT to FieldValue.serverTimestamp(),
+            Fields.UPDATED_BY to uid
+        )
+        if (type == TransactionType.EXPENSE) fields[Fields.CATEGORY] = edit.category ?: "Miscellaneous"
+        val task = firestore.collection(collectionOf(type)).document(id).update(fields)
+        if (task.awaitOrQueued()) {
+            SaveResult.SAVED
+        } else {
+            task.addOnFailureListener { e -> syncErrorEvents.tryEmit("An offline edit could not be synced: ${e.toUserMessage()}") }
+            SaveResult.QUEUED_OFFLINE
+        }
+    }
 
     private suspend fun save(collection: String, fields: Map<String, Any?>, what: String): Result<SaveResult> = runCatching {
         val uid = auth.currentUser?.uid ?: throw IllegalStateException("Please log in again.")
