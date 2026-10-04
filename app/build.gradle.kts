@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+// Set by the release workflow (-PversionCode / -PversionName); local builds stay 1 / "1.0"
+val appVersionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+val appVersionName = (findProperty("versionName") as String?) ?: "1.0"
+
 android {
     namespace = "com.neoqubix.devajit.h2"
     compileSdk {
@@ -17,10 +21,27 @@ android {
         applicationId = "com.neoqubix.devajit.h2"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+
+        // Where the app looks for new versions (a file attached to the latest GitHub Release)
+        buildConfigField("String", "UPDATE_INFO_URL", "\"https://github.com/DevP-ai/H2/releases/latest/download/update.json\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Release signing comes from the CI secrets (see .github/workflows/release.yml). Without them a release
+    // build is unsigned. Every update must be signed with the same key, or phones refuse to install it.
+    val keystorePath = System.getenv("KEYSTORE_PATH")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -28,6 +49,7 @@ android {
             optimization {
                 enable = false
             }
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -38,6 +60,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

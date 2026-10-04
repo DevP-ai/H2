@@ -12,6 +12,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.SystemUpdate
+import com.neoqubix.devajit.h2.BuildConfig
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -70,6 +72,7 @@ fun ProfileScreen(
     user: UserProfile,
     cartName: String?,
     onLogout: () -> Unit,
+    onCheckForUpdates: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -92,6 +95,7 @@ fun ProfileScreen(
                 InfoRow("Email", user.email)
                 InfoRow("Role", if (user.isAdmin) "Admin" else "Manager")
                 if (!user.isAdmin) InfoRow("Food cart", cartName ?: "Not assigned yet")
+                InfoRow("App version", BuildConfig.VERSION_NAME)
             }
         }
         Text("Edit details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -109,6 +113,10 @@ fun ProfileScreen(
             enabled = !state.saving && (name.trim() != user.name || phone.trim() != user.phone),
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (state.saving) "Saving…" else "Save") }
+        OutlinedButton(onClick = onCheckForUpdates, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Outlined.SystemUpdate, contentDescription = null)
+            Text("  Check for updates")
+        }
         OutlinedButton(onClick = { confirmLogout = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)
             Text("  Log out")

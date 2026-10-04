@@ -65,7 +65,7 @@ private val managerTabs = listOf(
 
 // Everything a manager sees, always limited to the cart in their profile
 @Composable
-fun ManagerRoot(user: UserProfile, onLogout: () -> Unit) {
+fun ManagerRoot(user: UserProfile, onLogout: () -> Unit, onCheckForUpdates: () -> Unit) {
     val viewModel: ManagerViewModel = hiltViewModel()
     LaunchedEffect(user) { viewModel.setUser(user) }
     val cartState by viewModel.cart.collectAsStateWithLifecycle()
@@ -90,7 +90,7 @@ fun ManagerRoot(user: UserProfile, onLogout: () -> Unit) {
                     onLogout = onLogout
                 )
             } else {
-                ManagerShell(user, cart, viewModel, onLogout)
+                ManagerShell(user, cart, viewModel, onLogout, onCheckForUpdates)
             }
         }
     }
@@ -98,7 +98,7 @@ fun ManagerRoot(user: UserProfile, onLogout: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ManagerShell(user: UserProfile, cart: Cart, viewModel: ManagerViewModel, onLogout: () -> Unit) {
+private fun ManagerShell(user: UserProfile, cart: Cart, viewModel: ManagerViewModel, onLogout: () -> Unit, onCheckForUpdates: () -> Unit) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -128,7 +128,7 @@ private fun ManagerShell(user: UserProfile, cart: Cart, viewModel: ManagerViewMo
                 TransactionHistoryList(selection, viewModel::setHistorySelection, history, canLoadMore, viewModel::loadMore)
             }
             composable("reports") { ReportsScreen(user) }
-            composable("profile") { ProfileScreen(user, cart.name, onLogout) }
+            composable("profile") { ProfileScreen(user, cart.name, onLogout, onCheckForUpdates) }
             composable("add_revenue") { AddTransactionScreen(user, cart, isExpense = false, onDone = { navController.popBackStack() }) }
             composable("add_expense") { AddTransactionScreen(user, cart, isExpense = true, onDone = { navController.popBackStack() }) }
         }

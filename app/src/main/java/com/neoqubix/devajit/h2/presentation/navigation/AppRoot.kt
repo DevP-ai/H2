@@ -24,6 +24,10 @@ import com.neoqubix.devajit.h2.presentation.auth.AuthNavHost
 import com.neoqubix.devajit.h2.presentation.auth.SessionViewModel
 import com.neoqubix.devajit.h2.presentation.auth.SplashScreen
 import com.neoqubix.devajit.h2.presentation.components.ErrorView
+import com.neoqubix.devajit.h2.presentation.update.UpdateDialog
+import com.neoqubix.devajit.h2.presentation.update.UpdateViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 /*
  * Splash -> signed in? -> profile -> role -> Admin or Manager.
@@ -31,9 +35,20 @@ import com.neoqubix.devajit.h2.presentation.components.ErrorView
  * A role or cart change made by an admin switches the screens immediately.
  */
 @Composable
-fun AppRoot(viewModel: SessionViewModel = hiltViewModel()) {
+fun AppRoot(
+    viewModel: SessionViewModel = hiltViewModel(),
+    updateViewModel: UpdateViewModel = hiltViewModel()
+) {
     val session by viewModel.session.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // New versions come from GitHub Releases; checked once per launch
+    LaunchedEffect(Unit) {
+        updateViewModel.checkOnLaunch()
+        updateViewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
+    val checkForUpdates = { updateViewModel.check(manual = true) }
 
     LaunchedEffect(Unit) {
         viewModel.syncErrors.collect { snackbar.showSnackbar(it) }
@@ -58,11 +73,12 @@ fun AppRoot(viewModel: SessionViewModel = hiltViewModel()) {
             }
             is Session.Ready -> key(s.user.id, s.user.role) {
                 SessionViewModelScope(viewModel.storeFor(s.user.id to s.user.role)) {
-                    if (s.user.role == Role.ADMIN) AdminRoot(s.user, viewModel::logout)
-                    else ManagerRoot(s.user, viewModel::logout)
+                    if (s.user.role == Role.ADMIN) AdminRoot(s.user, viewModel::logout, checkForUpdates)
+                    else ManagerRoot(s.user, viewModel::logout, checkForUpdates)
                 }
             }
         }
+        UpdateDialog(updateViewModel)
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).systemBarsPadding().padding(bottom = 80.dp))
     }
 }

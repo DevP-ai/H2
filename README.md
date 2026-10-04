@@ -56,3 +56,29 @@ app/src/main/java/com/neoqubix/devajit/h2/
 ./gradlew :app:testDebugUnitTest                 # money/date calculations
 cd firestore-tests && npm install && npm test    # security rules on the emulator (needs Java 21+)
 ```
+
+## Releases and in-app updates (no Play Store)
+
+Releases are built by **Actions → Release APK → Run workflow** (`.github/workflows/release.yml`):
+
+- **bump**: patch / minor / major from the last `vX.Y.Z` tag (the first release is `1.0.0`).
+  `versionCode = MAJOR*10000 + MINOR*100 + PATCH`.
+- **release_notes**: shown in the app's update dialog.
+- **force_update**: users on older versions must update before they can use the app.
+
+The workflow builds and signs the APK, verifies the signature, and publishes a GitHub Release with
+`h2-vX.Y.Z.apk` and `update.json` (version, minimum supported version, APK link, SHA-256, notes).
+
+The app reads `https://github.com/DevP-ai/H2/releases/latest/download/update.json` on every launch
+(release builds only) and from **Profile → Check for updates**. If a newer version exists it shows
+**Update available** (Later / Update now) or **Update required** (can't be dismissed), downloads the APK with a
+progress bar, checks its SHA-256, and opens the Android installer. The first time, Android asks to allow
+"Install unknown apps" for H2.
+
+First install for a new user: send them the APK link from the latest release page.
+
+### Signing secrets
+
+Add these in **Settings → Secrets and variables → Actions**: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`,
+`KEY_ALIAS`, `KEY_PASSWORD`. Every release must use the same keystore: if it is lost, installed apps can
+never be updated (users would have to uninstall and reinstall). Keep a backup outside this repo.

@@ -6,9 +6,11 @@ import com.neoqubix.devajit.h2.data.repository.AuthRepositoryImpl
 import com.neoqubix.devajit.h2.data.repository.CartRepositoryImpl
 import com.neoqubix.devajit.h2.data.repository.TransactionRepositoryImpl
 import com.neoqubix.devajit.h2.data.repository.UserRepositoryImpl
+import com.neoqubix.devajit.h2.data.update.GitHubUpdateRepository
 import com.neoqubix.devajit.h2.domain.repository.AuthRepository
 import com.neoqubix.devajit.h2.domain.repository.CartRepository
 import com.neoqubix.devajit.h2.domain.repository.TransactionRepository
+import com.neoqubix.devajit.h2.domain.repository.UpdateRepository
 import com.neoqubix.devajit.h2.domain.repository.UserRepository
 import dagger.Binds
 import dagger.Module
@@ -50,4 +52,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTransactionRepository(impl: TransactionRepositoryImpl): TransactionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUpdateRepository(impl: GitHubUpdateRepository): UpdateRepository
 }

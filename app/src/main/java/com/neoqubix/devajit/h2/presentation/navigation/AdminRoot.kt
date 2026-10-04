@@ -47,7 +47,7 @@ private val adminTabs = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminRoot(user: UserProfile, onLogout: () -> Unit) {
+fun AdminRoot(user: UserProfile, onLogout: () -> Unit, onCheckForUpdates: () -> Unit) {
     val viewModel: AdminViewModel = hiltViewModel()
     LaunchedEffect(user) { viewModel.setUser(user) }
     val context = LocalContext.current
@@ -81,7 +81,7 @@ fun AdminRoot(user: UserProfile, onLogout: () -> Unit) {
             composable("carts") { CartsScreen(viewModel, openCart, addCart) }
             composable("managers") { ManagersScreen(viewModel) }
             composable("reports") { ReportsScreen(user) }
-            composable("profile") { ProfileScreen(user, cartName = null, onLogout = onLogout) }
+            composable("profile") { ProfileScreen(user, cartName = null, onLogout = onLogout, onCheckForUpdates = onCheckForUpdates) }
             composable("cart/{cartId}") {
                 CartDetailScreen(user, onBack = { navController.popBackStack() }, onEdit = { id -> navController.navigate("cart_edit/$id") })
             }

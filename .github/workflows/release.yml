@@ -1,0 +1,186 @@
+name: Release APK
+
+# Builds a signed release APK and publishes it as a GitHub Release.
+# The app reads update.json from the latest release to offer the update in-app (we don't use the Play Store).
+#
+# Versions come from the last vX.Y.Z tag: the first release is 1.0.0, then each run bumps it.
+# versionCode = MAJOR*10000 + MINOR*100 + PATCH, so it always increases (keep MINOR and PATCH below 100).
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   KEYSTORE_BASE64    release keystore (.jks), base64 encoded
+#   KEYSTORE_PASSWORD  keystore password
+#   KEY_ALIAS          key alias
+#   KEY_PASSWORD       key password
+# Every release must be signed with the same keystore, or phones refuse to install the update.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump'
+        required: true
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      release_notes:
+        description: "What's new (shown in the app's update dialog)"
+        required: false
+        type: string
+        default: 'Bug fixes and improvements.'
+      force_update:
+        description: 'Required update: users on older versions must update before using the app'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# One release at a time, so two runs can never pick the same version
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=""
+          for s in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -z "${!s}" ] && missing="$missing $s"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # tags are needed to find the current version
+
+      - name: Work out the next version
+        id: version
+        run: |
+          LAST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$LAST_TAG" ]; then
+            NEXT="1.0.0"
+          else
+            IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
+            case "${{ inputs.bump }}" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            NEXT="$MAJOR.$MINOR.$PATCH"
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$NEXT"
+          if [ "$MINOR" -ge 100 ] || [ "$PATCH" -ge 100 ]; then
+            echo "::error::Minor and patch must stay below 100 (versionCode = MAJOR*10000 + MINOR*100 + PATCH)"
+            exit 1
+          fi
+          CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "Last tag: ${LAST_TAG:-none} -> v$NEXT (code $CODE)"
+          echo "name=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest :app:assembleRelease \
+            -PversionCode=${{ steps.version.outputs.code }} \
+            -PversionName=${{ steps.version.outputs.name }}
+
+      - name: Verify signature and prepare files
+        id: files
+        env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          FORCE: ${{ inputs.force_update }}
+        run: |
+          APK="h2-v${{ steps.version.outputs.name }}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "$APK"
+
+          # Fail rather than publish an APK that phones can't install
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n1)
+          "$APKSIGNER" verify --print-certs "$APK"
+
+          SHA256=$(sha256sum "$APK" | cut -d' ' -f1)
+          CODE=${{ steps.version.outputs.code }}
+
+          # A required update raises the minimum to this version; otherwise keep the previous minimum
+          if [ "$FORCE" = "true" ]; then
+            MIN=$CODE
+          else
+            MIN=$(curl -fsSL "https://github.com/${{ github.repository }}/releases/latest/download/update.json" | jq -r '.minVersionCode // 0' 2>/dev/null || echo 0)
+            [ -z "$MIN" ] && MIN=0
+          fi
+
+          jq -n \
+            --argjson versionCode "$CODE" \
+            --arg versionName "${{ steps.version.outputs.name }}" \
+            --argjson minVersionCode "$MIN" \
+            --arg apkUrl "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/$APK" \
+            --arg sha256 "$SHA256" \
+            --arg releaseNotes "$RELEASE_NOTES" \
+            --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{versionCode: $versionCode, versionName: $versionName, minVersionCode: $minVersionCode, apkUrl: $apkUrl, sha256: $sha256, releaseNotes: $releaseNotes, publishedAt: $publishedAt}' \
+            > update.json
+          cat update.json
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          echo "min=$MIN" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: H2 ${{ steps.version.outputs.tag }}
+          make_latest: true
+          body: |
+            ## What's new
+            ${{ inputs.release_notes }}
+
+            ---
+            **Version code:** ${{ steps.version.outputs.code }}${{ inputs.force_update && ' · **Required update**' || '' }}
+
+            **Install:** download `${{ steps.files.outputs.apk }}` below on the phone and open it.
+            Users who already have H2 get this update inside the app.
+          files: |
+            ${{ steps.files.outputs.apk }}
+            update.json
+
+      - name: Summary
+        run: |
+          {
+            echo "### Released ${{ steps.version.outputs.tag }} (code ${{ steps.version.outputs.code }})"
+            echo "- APK: \`${{ steps.files.outputs.apk }}\`"
+            echo "- Minimum supported version code: ${{ steps.files.outputs.min }}"
+            echo "- Apps check: https://github.com/${{ github.repository }}/releases/latest/download/update.json"
+          } >> "$GITHUB_STEP_SUMMARY"
