@@ -1,0 +1,146 @@
+rules_version = '2';
+
+// Food Cart security rules.
+// Admins (users/{uid}.role == "admin", set only from the Firebase console) see and manage everything.
+// Managers see and add data only for the cart in their own users/{uid}.cartId, which only an admin can change.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(profilePath());
+    }
+
+    function me() {
+      return get(profilePath()).data;
+    }
+
+    function isAdmin() {
+      return hasProfile() && me().role == 'admin';
+    }
+
+    // A manager assigned to exactly this cart
+    function isManagerOf(cartId) {
+      return hasProfile()
+        && me().role == 'manager'
+        && me().get('cartId', null) != null
+        && me().cartId == cartId;
+    }
+
+    function cartIsActive(cartId) {
+      return get(/databases/$(database)/documents/carts/$(cartId)).data.status == 'active';
+    }
+
+    function isServerTime(value) {
+      return value == request.time;
+    }
+
+    // ---------- users ----------
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Self-registration: always a manager without a cart; role "admin" can never be chosen here
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'role', 'cartId', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['name', 'email', 'role', 'cartId', 'createdAt', 'updatedAt'])
+        && request.resource.data.role == 'manager'
+        && request.resource.data.cartId == null
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && isServerTime(request.resource.data.createdAt)
+        && isServerTime(request.resource.data.updatedAt);
+
+      // A user may edit their own name/phone only. role, cartId, email and createdAt are locked.
+      // An admin may change a manager's cartId (assignment) but never anyone's role.
+      allow update: if signedIn() && (
+          (request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'updatedAt'])
+            && isServerTime(request.resource.data.updatedAt))
+          ||
+          (isAdmin()
+            && resource.data.role == 'manager'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cartId', 'updatedAt'])
+            && (request.resource.data.cartId == null || existsAfter(/databases/$(database)/documents/carts/$(request.resource.data.cartId)))
+            && isServerTime(request.resource.data.updatedAt))
+        );
+
+      allow delete: if false;
+    }
+
+    // ---------- carts ----------
+
+    function validCart() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'location', 'managerId', 'status', 'createdAt', 'updatedAt'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 80
+        && d.location is string && d.location.size() <= 120
+        && (d.managerId == null || d.managerId is string)
+        && d.status in ['active', 'inactive']
+        && isServerTime(d.updatedAt);
+    }
+
+    match /carts/{cartId} {
+      allow read: if isAdmin() || isManagerOf(cartId);
+      allow create: if isAdmin() && validCart() && isServerTime(request.resource.data.createdAt);
+      allow update: if isAdmin() && validCart() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    // ---------- sales & expenses ----------
+    // Created by the cart's own manager (or an admin) for an active cart, stamped with who and when.
+    // Records are never edited or deleted from the app.
+
+    function validRecord(extraKeys) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['cartId', 'amount', 'date', 'description', 'createdBy', 'createdAt', 'updatedAt'].concat(extraKeys))
+        && d.keys().hasAll(['cartId', 'amount', 'date', 'createdBy', 'createdAt', 'updatedAt'])
+        && d.cartId is string
+        && (d.amount is int || d.amount is float)
+        && d.amount > 0
+        && d.amount <= 10000000
+        && d.date is timestamp
+        && (!('description' in d) || (d.description is string && d.description.size() <= 200))
+        && d.createdBy == request.auth.uid
+        && isServerTime(d.createdAt)
+        && isServerTime(d.updatedAt);
+    }
+
+    function canWriteFor(cartId) {
+      return (isManagerOf(cartId) || isAdmin()) && cartIsActive(cartId);
+    }
+
+    match /sales/{saleId} {
+      allow read: if isAdmin() || isManagerOf(resource.data.cartId);
+      allow create: if validRecord([]) && canWriteFor(request.resource.data.cartId);
+      allow update, delete: if false;
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAdmin() || isManagerOf(resource.data.cartId);
+      allow create: if validRecord(['category'])
+        && request.resource.data.category is string
+        && request.resource.data.category.size() > 0
+        && request.resource.data.category.size() <= 50
+        && canWriteFor(request.resource.data.cartId);
+      allow update, delete: if false;
+    }
+
+    // Everything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
